@@ -17,9 +17,9 @@ class Embedding():
         self.vocab_size = 0
         self.embedding_matrix = None
 
-        if load_path:
+        if load_path is not None:
             self._load_embeddings()
-        else:
+        elif sentences is not None:
             self._initialize_embeddings()
             self.embedding_matrix = np.random.uniform(-1, 1, (self.vocab_size, self.size))
 
@@ -40,6 +40,7 @@ class Embedding():
 
     def _build_vocabulary(self):
         unique_words = set()
+        unique_words.add('<unknown>')
         for sentence in tqdm(self.sentences):
             grams = ngrams(sentence, self.ngram)
             for gram in grams:
@@ -47,8 +48,9 @@ class Embedding():
         self.vocabulary = {word: index for index, word in enumerate(sorted(unique_words))}
         self.vocab_size = len(self.vocabulary)
 
+
     def lookup(self, words):
-        ids = [self.vocabulary[w] for w in words if w in self.vocabulary]
+        ids = lookup_ids(self.vocabulary, words)
         return self.embedding_matrix[ids,]
 
     def save_embeddings(self, save_path):
@@ -57,6 +59,26 @@ class Embedding():
             print('Writing embeddings to file...')
             for word in sorted(self.vocabulary):
                 writer.writerow([word] + list(self.lookup([word])[0]))
+
+
+def save_vocab(vocab, save_path):
+    sorted_vocab = sorted(vocab)
+    with open(save_path, 'w') as output:
+        for word in sorted_vocab:
+            output.write(word+'\n')
+
+
+def load_vocab(load_path):
+    vocabulary = dict()
+    with open(load_path) as vocabulary_file:
+        for index, line in enumerate(vocabulary_file):
+            vocabulary[line.strip()] = index
+    return vocabulary
+
+
+def lookup_ids(vocabulary, words):
+    ids = [vocabulary[w] if w in vocabulary else vocabulary['<unknown>'] for w in words]
+    return ids
 
 
 def file_len(fname):
@@ -70,6 +92,9 @@ if __name__=='__main__':
     sentences = processor.preprocess_csv('/home/maurice/Downloads/training.1600000.processed.noemoticon.csv')
     embedding = Embedding(size=25, sentences=sentences)
     embedding.save_embeddings('/home/maurice/Downloads/twitter_embeddings.csv')
+    save_vocab(embedding.vocabulary, '/home/maurice/Downloads/twitter_embeddings.vocab')
     # embedding = Embedding(size=200, load_path='/home/maurice/Downloads/twitter_embeddings.csv')
     print(embedding.vocab_size)
+    vocab = load_vocab('/home/maurice/Downloads/twitter_embeddings.vocab')
+    print(vocab)
 

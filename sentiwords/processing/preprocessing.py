@@ -18,7 +18,7 @@ class Preprocessor():
             tweet = self.url_pattern.sub(self.url_token, tweet)
         tokens = self.tokenizer.tokenize(tweet)
         tokens = filter(lambda x: x not in self.stopwords, tokens)
-        tokens = map(lambda x: x.replace(' ', ''), tokens)
+        tokens = list(map(lambda x: x.replace(' ', ''), tokens))
         return tokens
 
     def preprocess_csv(self, csv, columns=['sentiment', 'id', 'date', 'status', 'user', 'text']):
