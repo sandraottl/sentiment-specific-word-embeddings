@@ -4,10 +4,12 @@ import argparse
 import numpy as np
 from decimal import Decimal
 from ..processing.preprocessing import Preprocessor
-from .embedding import load_vocab, lookup_ids
+from .embedding import load_vocab, lookup_ids, Embedding, save_vocab
 from nltk import ngrams
 from tqdm import tqdm
 from random import randint
+from os.path import join, splitext
+from os import listdir
 
 tf.logging.set_verbosity(tf.logging.INFO)
 
@@ -51,9 +53,9 @@ def input_fn(csv, vocabulary, csv_delimiter=',', preprocessor=Preprocessor(), ng
         for sample in input_generator:
             yield sample
     dataset = tf.data.Dataset.from_generator(gen, output_types=(tf.int64, tf.int64), output_shapes=([2,3],[]))
-    dataset = dataset.prefetch(100000)
+    dataset = dataset.prefetch(10000)
     if shuffle:
-        dataset = dataset.shuffle(buffer_size=10000000)
+        dataset = dataset.shuffle(buffer_size=10000)
     dataset = dataset.repeat(num_epochs)
     dataset = dataset.batch(batch_size)
     iterator = dataset.make_one_shot_iterator()
@@ -61,11 +63,17 @@ def input_fn(csv, vocabulary, csv_delimiter=',', preprocessor=Preprocessor(), ng
         features, labels = iterator.get_next()
         return {'original': features[:,0], 'corrupted': features[:,1]}, labels
 
-def model_fn_wrapper(mode, features, labels, params={'vocabulary_size': 100000, 'alpha': 0.5, 'hidden_units': 20, 'learning_rate':0.1, 'embedding_size': 50}):
+def model_fn(mode, features, labels, params={'vocabulary_size': 100000, 'alpha': 0.5, 'hidden_units': 20, 'learning_rate': 0.1, 'embedding_size': 50, 'initial_embedding': None, 'vocabulary_file': None}):
+
+    if params['initial_embedding'] is not None:
+        init = tf.constant_initializer(params['initial_embedding'])
+    else:
+        init = None
+
+
     def shared_network(input):
-        # input_layer = tf.feature_column.input_layer(features, word_ids)
         # define embedding variable
-        word_embeddings = tf.get_variable('word_embeddings', [params['vocabulary_size'], params['embedding_size']])
+        word_embeddings = tf.get_variable('word_embeddings', [params['vocabulary_size'], params['embedding_size']], initializer=init)
 
         # lookup embeddings for true and negative sample
         embeds = tf.nn.embedding_lookup(word_embeddings, input, name='embeddings')
@@ -77,7 +85,6 @@ def model_fn_wrapper(mode, features, labels, params={'vocabulary_size': 100000, 
 
     with tf.variable_scope('shared_network', reuse=tf.AUTO_REUSE) as scope:
         # original ngram output
-
         original_output = shared_network(features['original'])
         original_semantic_score = original_output[:,0]
         original_sentiment_score = original_output[:,1]
@@ -118,7 +125,7 @@ if __name__=='__main__':
         required=True,
         default=None,
         help='Twitter sentiment dataset in csv format.')
-    parser.add_argument('-vocabulary', help='Vocabulary file (each word on separate line).', required=True)
+    parser.add_argument('--vocabulary', help='Vocabulary file (each word on separate line).', default=None)
     parser.add_argument(
         '--batch_size', default=32, type=int, help='Batchsize for training.')
     parser.add_argument(
@@ -146,7 +153,7 @@ if __name__=='__main__':
         '--hidden', default=20, type=int, help='Number of units of the hidden layer.')
     parser.add_argument(
         '--embedding_size',
-        default=50,
+        default=25,
         type=int,
         help='Size of word embedding vectors.')
     parser.add_argument(
@@ -154,7 +161,22 @@ if __name__=='__main__':
         default=10,
         type=int,
         help='How many checkpoints to keep stored on disk.')
+    parser.add_argument('--initial_embeddings', default=None, help='Initialize the embedding matrix from a csv file.')
+    parser.add_argument('--export_path', default=None, help='Export path to embedding csv.')
     args = parser.parse_args()
+
+    if args.vocabulary is None and args.initial_embeddings is None:
+        parser.error('Either --vocabulary or --initial_embeddings has to be given.')
+
+    if args.initial_embeddings is not None:
+        embedding = Embedding(size=args.embedding_size)
+        embedding.load(args.initial_embeddings)
+        vocab = embedding.vocabulary
+        embedding_matrix = embedding.embedding_matrix
+
+    else:
+        vocab = load_vocab(args.vocabulary)
+        embedding_matrix = None
     gpu_options = tf.GPUOptions(allow_growth=True)
     session_config = tf.ConfigProto(gpu_options=gpu_options)
     config = tf.estimator.RunConfig(
@@ -162,7 +184,17 @@ if __name__=='__main__':
         keep_checkpoint_max=args.keep_checkpoints,
         session_config=session_config
         )
-    vocab = load_vocab(args.vocabulary)
     i = InputGenerator(args.data, vocab, Preprocessor(), ngram=1)
-    model = tf.estimator.Estimator(model_fn=model_fn_wrapper, model_dir=args.model_dir, params={'vocabulary_size': len(vocab), 'alpha': args.alpha, 'hidden_units': args.hidden, 'learning_rate': args.lr, 'embedding_size': args.embedding_size}, config=config)
-    model.train(lambda: input_fn(args.data, vocab, num_epochs=args.epochs, batch_size=args.batch_size))
+    model = tf.estimator.Estimator(model_fn=model_fn, model_dir=args.model_dir, params={'vocabulary_size': len(vocab), 'alpha': args.alpha, 'hidden_units': args.hidden, 'learning_rate': args.lr, 'embedding_size': args.embedding_size, 'initial_embedding': embedding_matrix}, config=config)
+    model_dir = model.model_dir
+    # model.train(lambda: input_fn(args.data, vocab, num_epochs=args.epochs, batch_size=args.batch_size))
+    if args.export_path is not None:
+        graph_path = [join(model_dir, meta_graph) for meta_graph in listdir(model_dir) if meta_graph.endswith('.meta')][0]
+        with tf.Session() as sess:
+            saver = tf.train.import_meta_graph(graph_path)
+            saver.restore(sess, tf.train.latest_checkpoint(model_dir))
+            embedding_matrix = sess.run('shared_network/word_embeddings:0')
+        embedding = Embedding(size=args.embedding_size)
+        embedding.embedding_matrix = embedding_matrix
+        embedding.vocabulary = vocab
+        embedding.save(args.export_path)
