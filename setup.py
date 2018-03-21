@@ -3,8 +3,9 @@ from setuptools import setup, find_packages
 setup(
    name='sentiwords',
    version='0.1',
-   description='A useful module',
+   description='Package for training and working with Sentiment-Specific word embeddings.',
    packages=find_packages(),
-   install_requires=['nltk', 'numpy', 'pandas'],
+   install_requires=['nltk', 'numpy', 'pandas', 'tqdm'],
+   extras_require={'gpu': ['tensorflow-gpu'], 'cpu': ['tensorflow']},
    zip_safe=False
 )

@@ -7,7 +7,7 @@ from os.path import splitext
 
 
 class Embedding():
-    def __init__(self, size=200, ngram=1):
+    def __init__(self, size=None, ngram=1):
         self.size = size
         self.ngram = ngram
         self.vocabulary = dict()
@@ -16,18 +16,20 @@ class Embedding():
 
     def load(self, load_path):
         self.vocab_size = file_len(load_path)
-        self.embedding_matrix = np.zeros(
-            (self.vocab_size, self.size), dtype=float)
 
         with open(load_path, mode='r', newline='') as embedding_file:
             reader = csv.reader(
                 embedding_file, delimiter=' ', quoting=csv.QUOTE_NONE)
             for index, embedding in tqdm(enumerate(reader)):
+                if self.embedding_matrix is None:
+                    self.size = len(embedding) - 1
+                    self.embedding_matrix = np.zeros(
+                        (self.vocab_size, self.size), dtype=float)
                 self.vocabulary[embedding[0]] = index
                 self.embedding_matrix[index] = embedding[1:]
 
     def initialize_embeddings_from_sentences(self, sentences):
-        assert sentences is not None
+        assert sentences is not None and self.size is not None
         print('Building Vocabulary')
         self._build_vocabulary(sentences)
         self.embedding_matrix = np.random.uniform(-1, 1,
@@ -96,29 +98,6 @@ def file_len(fname):
     return i + 1
 
 
-def convert_tweet_csv(input_csv,
-                      output_csv,
-                      embedding,
-                      delimiter='\t',
-                      preprocessor=Preprocessor()):
-    with open(input_csv) as input, open(output_csv, 'w', newline='') as output:
-        reader = csv.reader(input, delimiter=delimiter)
-        writer = csv.writer(output, delimiter=',')
-
-        # write header
-        header = ['id'] + ['emb_' + str(i)
-                           for i in range(embedding.size)] + ['sentiment']
-        writer.writerow(header)
-
-        for line in tqdm(reader):
-            id = line[0]
-            sentiment = line[1]
-            tweet = line[2]
-            if tweet != 'Not Available':
-                tokenized_tweet = preprocessor.tokenize_tweet(tweet)
-                embeddings = embedding.lookup(tokenized_tweet)
-                for row in embeddings:
-                    writer.writerow([id]+list(row)+[sentiment])
 
 if __name__ == '__main__':
     # processor = Preprocessor()
@@ -135,6 +114,4 @@ if __name__ == '__main__':
     # # embedding = Embedding(size=200, load_path='/home/maurice/Downloads/twitter_embeddings.csv')
     # print(embedding.vocab_size)
     # vocab = load_vocab('/home/maurice/Downloads/twitter_embeddings.vocab')
-    embedding = Embedding(size=25)
-    embedding.load('/home/maurice/Downloads/GloVe/glove.twitter.27B.25d.txt')
-    convert_tweet_csv('/home/maurice/Desktop/train2013.txt', '/home/maurice/Desktop/train2013_embs.csv', embedding)
+    pass
