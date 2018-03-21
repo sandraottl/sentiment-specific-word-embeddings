@@ -224,7 +224,7 @@ def main():
         '--alpha',
         default=0.5,
         type=float,
-        help='Alpha parameter used to weigh syntactic versus sentiment loss.')
+        help='Alpha parameter used to weigh syntactic versus sentiment loss. 1 means only sysntactic loss is considered while 0 uses only semantic loss.')
     parser.add_argument('--lr', default=0.1, type=float, help='Learning rate.')
     parser.add_argument(
         '--hidden',
@@ -250,18 +250,22 @@ def main():
     args = parser.parse_args()
 
     if args.vocabulary is None and args.initial_embeddings is None:
-        parser.error(
-            'Either --vocabulary or --initial_embeddings has to be given.')
-
-    if args.initial_embeddings is not None:
-        embedding = Embedding(size=args.embedding_size)
+        print('Building vocabulary from input data...')
+        processor = Preprocessor()
+        sentences = processor.preprocess_csv(args.data)
+        embedding = Embedding(args.embedding_size)
+        embedding._build_vocabulary(sentences)
+    elif args.initial_embeddings is not None:
+        print('Loading embeddings from file...')
+        embedding = Embedding()
         embedding.load(args.initial_embeddings)
         vocab = embedding.vocabulary
         embedding_matrix = embedding.embedding_matrix
-
     else:
+        print('Loading vocabulary...')
         vocab = load_vocab(args.vocabulary)
         embedding_matrix = None
+
     gpu_options = tf.GPUOptions(allow_growth=True)
     session_config = tf.ConfigProto(gpu_options=gpu_options)
     config = tf.estimator.RunConfig(
@@ -282,6 +286,8 @@ def main():
         config=config)
     model_dir = model.model_dir
     model.train(lambda: input_fn(args.data, vocab, num_epochs=args.epochs, batch_size=args.batch_size))
+
+    # export the embeddings as csv
     if args.export_path is not None:
         graph_path = [
             join(model_dir, meta_graph) for meta_graph in listdir(model_dir)

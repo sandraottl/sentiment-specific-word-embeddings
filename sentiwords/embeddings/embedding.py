@@ -96,22 +96,3 @@ def file_len(fname):
         for i, l in enumerate(f):
             pass
     return i + 1
-
-
-
-if __name__ == '__main__':
-    # processor = Preprocessor()
-    # sentences = processor.preprocess_csv(
-    #     '/home/maurice/Downloads/training.1600000.processed.noemoticon.csv')
-    # embedding = Embedding(size=25)
-    # embedding.initialize_embeddings_from_sentences(sentences)
-    # embedding.save_embeddings(
-    #     '/home/maurice/Downloads/twitter_embeddings_better_preprocessing.csv')
-    # save_vocab(
-    #     embedding.vocabulary,
-    #     '/home/maurice/Downloads/twitter_embeddings_better_preprocessing.vocab'
-    # )
-    # # embedding = Embedding(size=200, load_path='/home/maurice/Downloads/twitter_embeddings.csv')
-    # print(embedding.vocab_size)
-    # vocab = load_vocab('/home/maurice/Downloads/twitter_embeddings.vocab')
-    pass
