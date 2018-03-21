@@ -255,6 +255,8 @@ def main():
         sentences = processor.preprocess_csv(args.data)
         embedding = Embedding(args.embedding_size)
         embedding._build_vocabulary(sentences)
+        vocab = embedding.vocabulary
+        embedding_matrix = None
     elif args.initial_embeddings is not None:
         print('Loading embeddings from file...')
         embedding = Embedding()
