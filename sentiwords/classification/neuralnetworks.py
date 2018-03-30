@@ -1,6 +1,7 @@
 # Classification with Convolutional and LSTM Neural Networks
 # **********************************************************
 
+# import sys
 import numpy as np
 import pandas as pd
 from sklearn.preprocessing import LabelEncoder
@@ -9,8 +10,9 @@ from keras.utils import to_categorical
 from keras.layers import Dense, Input, Embedding, LSTM, Flatten, GlobalMaxPooling1D, Conv1D, MaxPooling1D
 from keras.models import Model
 
-# from preprocessing import Preprocessor
 from ..processing.preprocessing import Preprocessor
+# sys.path.append('C:/Users/WohnzimmerPC/Documents/GitHub/sentiment-specific-word-embeddings/sentiwords/')
+# from processing.preprocessing import Preprocessor
 
 
 class NeuralNetworkClassifier:
@@ -138,7 +140,7 @@ class NeuralNetworkClassifier:
 
         print("For %s words of the Tweet Vocabulary, no prelearned embedding could be found" % embed_not_found_counter)
 
-    def convnn(self):
+    def convnn(self, dim_convlayers=20, dim_denselayer=20, verbosity=0):
 
         # Check if loading and preprocessing is finished, then prepare embedding matrix
         assert self.tweet_length > 0
@@ -157,14 +159,14 @@ class NeuralNetworkClassifier:
 
         embedded_inputs = embedding_layer(inputtensor)
 
-        x = Conv1D(20, 2, activation='relu')(embedded_inputs)
+        x = Conv1D(int(dim_convlayers), 2, activation='relu')(embedded_inputs)
         x = MaxPooling1D(2)(x)
-        x = Conv1D(20, 2, activation='relu')(x)
+        x = Conv1D(int(dim_convlayers), 2, activation='relu')(x)
         x = MaxPooling1D(2)(x)
-        x = Conv1D(20, 2, activation='relu')(x)
+        x = Conv1D(int(dim_convlayers), 2, activation='relu')(x)
         x = GlobalMaxPooling1D()(x)
 
-        x = Dense(20, activation='relu')(x)
+        x = Dense(int(dim_denselayer), activation='relu')(x)
 
         outputlayer = Dense(self.y_train.shape[1], activation='softmax')(x)
 
@@ -176,14 +178,18 @@ class NeuralNetworkClassifier:
         model.fit(self.x_train, self.y_train,
                   batch_size=128,
                   epochs=10,
-                  verbose=2,
+                  verbose=verbosity,
                   validation_data=(self.x_develop, self.y_develop))
 
-        scores = model.evaluate(self.x_test, self.y_test)
-        print('Test loss:', scores[0])
-        print('Test accuracy:', scores[1])
+        scores = model.evaluate(self.x_test, self.y_test, verbose=verbosity)
 
-    def lstm(self):
+        if verbosity > 0:
+            print('Test loss:', scores[0])
+            print('Test accuracy:', scores[1])
+
+        return scores[1]
+
+    def lstm(self, verbosity=0):
 
         # Check if loading and preprocessing is finished, then prepare embedding matrix
         assert self.tweet_length > 0
@@ -216,24 +222,28 @@ class NeuralNetworkClassifier:
 
         model.fit(self.x_train, self.y_train,
                   batch_size=128,
-                  epochs=10,
-                  verbose=2,
+                  epochs=7,
+                  verbose=verbosity,
                   validation_data=(self.x_develop, self.y_develop))
 
-        scores = model.evaluate(self.x_test, self.y_test)
-        print('Test loss:', scores[0])
-        print('Test accuracy:', scores[1])
+        scores = model.evaluate(self.x_test, self.y_test, verbose=verbosity)
+
+        if verbosity > 0:
+            print('Test loss:', scores[0])
+            print('Test accuracy:', scores[1])
+
+        return scores[1]
 
 
 if __name__ == '__main__':
 
     NNC = NeuralNetworkClassifier()
 
-    NNC.load_embedding(embedding_dim=100,
-                       path_embeddingfile='C:/Users/rickrack/Downloads/glove.6B/glove.6B.100d.txt')
-    NNC.load_and_preprocess_data(path_trainingfile='C:/Users/rickrack/Downloads/semeval2013/twitter-2013train-A.txt',
-                                 path_developfile='C:/Users/rickrack/Downloads/semeval2013/twitter-2013dev-A.txt',
-                                 path_testfile='C:/Users/rickrack/Downloads/semeval2013/twitter-2013test-A.txt')
+    NNC.load_embedding(embedding_dim=50,
+                       path_embeddingfile='C:/Users/WohnzimmerPC/Desktop/Datenpool_TMP2018_SSWE/sswe-alpha05_50d/sswe-alpha05_50d.csv')
+    NNC.load_and_preprocess_data(path_trainingfile='C:/Users/WohnzimmerPC/Desktop/Datenpool_TMP2018_SSWE/semeval_cleaned_2sent/twitter-2013train-A.txt',
+                                 path_developfile='C:/Users/WohnzimmerPC/Desktop/Datenpool_TMP2018_SSWE/semeval_cleaned_2sent/twitter-2013dev-A.txt',
+                                 path_testfile='C:/Users/WohnzimmerPC/Desktop/Datenpool_TMP2018_SSWE/semeval_cleaned_2sent/twitter-2013test-A.txt')
 
-    NNC.convnn()
-    NNC.lstm()
+    NNC.convnn(verbosity=2)
+    NNC.lstm(verbosity=2)
