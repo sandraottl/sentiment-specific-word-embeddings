@@ -3,7 +3,8 @@ import csv
 from nltk import ngrams
 from ..processing.preprocessing import Preprocessor
 from tqdm import tqdm
-from os.path import splitext
+from os.path import splitext, dirname
+from os import makedirs
 
 
 class Embedding():
@@ -53,6 +54,7 @@ class Embedding():
         return self.embedding_matrix[ids, ]
 
     def save(self, save_path):
+        makedirs(dirname(save_path), exist_ok=True)
         with open(save_path, 'w', newline='') as save_file:
             writer = csv.writer(
                 save_file,

@@ -152,28 +152,28 @@ def model_fn(
     with tf.variable_scope('shared_network', reuse=tf.AUTO_REUSE) as scope:
         # original ngram output
         original_output = shared_network(features['original'])
-        original_semantic_score = original_output[:, 0]
+        original_syntactic_score = original_output[:, 0]
         original_sentiment_score = original_output[:, 1]
 
         # corrupted ngram output
         corrupted_output = shared_network(features['corrupted'])
-        corrupted_semantic_score = corrupted_output[:, 0]
+        corrupted_syntactic_score = corrupted_output[:, 0]
         corrupted_sentiment_score = corrupted_output[:, 1]
 
     if mode == tf.estimator.ModeKeys.TRAIN or mode == tf.estimator.ModeKeys.EVAL:
         with tf.name_scope('loss'):
-            sentiment_loss = tf.maximum(
+            sentiment_loss = tf.reduce_mean(tf.maximum(
                 tf.cast(0, tf.float32),
                 1 - tf.cast(labels, tf.float32) * original_sentiment_score +
-                tf.cast(labels, tf.float32) * corrupted_sentiment_score,
+                tf.cast(labels, tf.float32) * corrupted_sentiment_score),
                 name='sentiment')
-            semantic_loss = tf.maximum(
+            tf.summary.scalar('sentiment_loss', sentiment_loss)
+            syntactic_loss = tf.reduce_mean(tf.maximum(
                 tf.cast(0, tf.float32),
-                1 - original_semantic_score + corrupted_semantic_score,
-                name='semantic')
-            loss = tf.reduce_mean(
-                params['alpha'] * semantic_loss +
-                (1 - params['alpha']) * sentiment_loss,
+                1 - original_syntactic_score + corrupted_syntactic_score)
+                , name='syntactic')
+            tf.summary.scalar('syntactic_loss', syntactic_loss)
+            loss = tf.add((params['alpha'] * syntactic_loss), ((1 - params['alpha']) * sentiment_loss),
                 name='combined')
     else:
         loss = None
@@ -196,7 +196,7 @@ def model_fn(
 def main():
     parser = argparse.ArgumentParser(
         description=
-        'Train a Sentiment-specific word embeddings on a csv twitter sentiment dataset.'
+        'Train Sentiment-Specific word embeddings on a csv twitter sentiment dataset.'
     )
     parser.add_argument(
         '-data',
@@ -268,6 +268,10 @@ def main():
         vocab = load_vocab(args.vocabulary)
         embedding_matrix = None
 
+    if embedding_matrix is not None:
+        embedding_size = embedding_matrix.shape[1]
+    else:
+        embedding_size = args.embedding_size
     gpu_options = tf.GPUOptions(allow_growth=True)
     session_config = tf.ConfigProto(gpu_options=gpu_options)
     config = tf.estimator.RunConfig(
@@ -282,7 +286,7 @@ def main():
             'alpha': args.alpha,
             'hidden_units': args.hidden,
             'learning_rate': args.lr,
-            'embedding_size': args.embedding_size,
+            'embedding_size': embedding_size,
             'initial_embedding': embedding_matrix
         },
         config=config)
