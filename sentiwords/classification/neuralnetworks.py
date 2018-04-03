@@ -1,5 +1,5 @@
 """
-Classification with Convolutional and LSTM Neural Networks
+Implementation of Convolutional and LSTM Neural Network based classification
 
 Responsibility: Rick Beer
 
@@ -66,6 +66,7 @@ class NeuralNetworkClassifier:
         self.embedding_dim = embedding_dim
 
         with open(path_embeddingfile, encoding='utf8') as embedfile:
+            # iterate over lines and save the word and its embedding into dictionary prelearned_embeddings
             for line in embedfile:
                 values = line.split()
                 word = values[0]
@@ -80,7 +81,7 @@ class NeuralNetworkClassifier:
                                  path_testfile,
                                  tweet_length=40):
         """
-        Load and preprocess the three datasets (training,development,test) for classification
+        Load and preprocess the three datasets (training, development, test) for classification
 
         :param path_trainingfile: path to the file containing the training dataset
         :param path_developfile: path to the file containing the development dataset
@@ -91,8 +92,10 @@ class NeuralNetworkClassifier:
         """
         self.tweet_length = tweet_length
 
+        # instantiate new Preprocessor for cleaning and tokenizing the tweets
         pp = Preprocessor()
 
+        # Load, preprocess and split Training dataset
         df_train = pd.read_csv(path_trainingfile, sep='\t', header=None, names=['id', 'sentiment', 'text'], quoting=3)
         df_train['tokens'] = df_train['text'].apply(pp.tokenize_tweet)
         x_train_raw = df_train['tokens'].values
@@ -100,6 +103,7 @@ class NeuralNetworkClassifier:
 
         print('Loaded %s Tweets as Training Data' % len(x_train_raw))
 
+        # Load, preprocess and split Development/Evaluation dataset
         df_develop = pd.read_csv(path_developfile, sep='\t', header=None, names=['id', 'sentiment', 'text'], quoting=3)
         df_develop['tokens'] = df_develop['text'].apply(pp.tokenize_tweet)
         x_develop_raw = df_develop['tokens'].values
@@ -107,6 +111,7 @@ class NeuralNetworkClassifier:
 
         print('Loaded %s Tweets as Development Data' % len(x_develop_raw))
 
+        # Load, preprocess and split Test dataset
         df_test = pd.read_csv(path_testfile, sep='\t', header=None, names=['id', 'sentiment', 'text'], quoting=3)
         df_test['tokens'] = df_test['text'].apply(pp.tokenize_tweet)
         x_test_raw = df_test['tokens'].values
@@ -114,8 +119,7 @@ class NeuralNetworkClassifier:
 
         print('Loaded %s Tweets as Test Data' % len(x_test_raw))
 
-        # Build overall vocabulary
-
+        # Build overall vocabulary by adding every token to a set (automatically avoids duplicates)
         unique_tokens = set()
 
         for tweet in x_train_raw:
@@ -138,7 +142,6 @@ class NeuralNetworkClassifier:
         print('Overall vocabulary size: %s' % len(self.vocabulary))
 
         # Translate Tokens to Indices in the Tweets and pad them to the same length
-
         x_train_indices = [[self.vocabulary[token] for token in tweet] for tweet in x_train_raw]
         x_develop_indices = [[self.vocabulary[token] for token in tweet] for tweet in x_develop_raw]
         x_test_indices = [[self.vocabulary[token] for token in tweet] for tweet in x_test_raw]
@@ -148,7 +151,6 @@ class NeuralNetworkClassifier:
         self.x_test = pad_sequences(x_test_indices, tweet_length)
 
         # Transform Sentiment Labels in binary format
-
         encoder = LabelEncoder()
         encoder.fit(y_train_raw)
 
@@ -161,10 +163,14 @@ class NeuralNetworkClassifier:
         print("Shapes of Output Tensors Y:", self.y_train.shape, self.y_develop.shape, self.y_test.shape)
 
     def __prepare_embedding_matrix(self):
-
+        """
+        Private Method called to initialize the embedding matrix before classification
+        :return: void
+        """
+        # set dimensions and fill embedding matrix with zeros
         self.embedding_matrix = np.zeros((len(self.vocabulary), self.embedding_dim))
 
-        # for debugging/statistics; will count how many words of vocabulary are not found in prelearned embeddings
+        # for debugging/statistics: will count how many words of vocabulary are not found in prelearned embeddings
         embed_not_found_counter = 0
 
         for w, i in self.vocabulary.items():
@@ -186,6 +192,7 @@ class NeuralNetworkClassifier:
         :param save_predictions_file: path to file in which the predictions are saved (optional)
         :return: classification accuracy
         """
+        # convert back float arguments by Bayesian Optimization to integer (this would break tensorflow)
         dimconvlayers = int(round(dim_convlayers))
         rankkernels = int(round(rank_kernels))
 
@@ -196,6 +203,7 @@ class NeuralNetworkClassifier:
         if self.embedding_matrix is None:
             self.__prepare_embedding_matrix()
 
+        # Prepare Embedding Layer as first layer in the network (initializing with embedding matrix)
         embedding_layer = Embedding(len(self.vocabulary),
                                     self.embedding_dim,
                                     weights=[self.embedding_matrix],
@@ -206,32 +214,40 @@ class NeuralNetworkClassifier:
 
         embedded_inputs = embedding_layer(inputtensor)
 
+        # Sequence of Convolutional and Pooling Layers as described in the report
         x = Conv1D(dimconvlayers, rankkernels, activation='relu')(embedded_inputs)
         x = MaxPooling1D(rankkernels)(x)
         x = Conv1D(dimconvlayers, rankkernels, activation='relu')(x)
         x = GlobalMaxPooling1D()(x)
 
+        # Fully connected dense layer with 20 neurons
         x = Dense(20, activation='relu')(x)
 
+        # Output layer with as many neurons as tweet classes (assuming equal number of classes in train/develop/test)
         outputlayer = Dense(self.y_train.shape[1], activation='softmax')(x)
 
+        # Build and compile the model
         model = Model(inputtensor, outputlayer)
         model.compile(loss='categorical_crossentropy',
                       optimizer='rmsprop',
                       metrics=['acc'])
 
+        # Fitting the model (i.e. learning with training set)
         model.fit(self.x_train, self.y_train,
                   batch_size=128,
                   epochs=10,
                   verbose=2 if verbose_mode else 0,
                   validation_data=(self.x_develop, self.y_develop))
 
+        # Calculating classification accuracy on test set
         scores = model.evaluate(self.x_test, self.y_test, verbose=1 if verbose_mode else 0)
 
+        # if user provided a path, save the actual predictions on the test set to a file
         if save_predictions_file != "":
             predictions = model.predict(self.x_test)
             np.savetxt(save_predictions_file, predictions, delimiter=",")
 
+        # print loss and accuracy on test set
         if verbose_mode:
             print('Test loss:', scores[0])
             print('Test accuracy:', scores[1])
@@ -253,6 +269,7 @@ class NeuralNetworkClassifier:
         if self.embedding_matrix is None:
             self.__prepare_embedding_matrix()
 
+        # Prepare Embedding Layer as first layer in the network (initializing with embedding matrix)
         embedding_layer = Embedding(len(self.vocabulary),
                                     self.embedding_dim,
                                     weights=[self.embedding_matrix],
@@ -263,30 +280,38 @@ class NeuralNetworkClassifier:
 
         embedded_inputs = embedding_layer(inputtensor)
 
+        # Two LSTM Layers (first argument refers to dimensionality of cell state, not number of cells!)
         x = LSTM(self.embedding_dim, return_sequences=True)(embedded_inputs)
         x = LSTM(self.embedding_dim, return_sequences=True)(x)
 
+        # Flatten layer to serialize output into one-dimensional
         x = Flatten()(x)
 
+        # Output layer with as many neurons as tweet classes (assuming equal number of classes in train/develop/test)
         x = Dense(self.y_train.shape[1], activation='softmax')(x)
 
+        # Build and compile the model
         model = Model(inputtensor, x)
         model.compile(loss='categorical_crossentropy',
                       optimizer='adam',
                       metrics=['acc'])
 
+        # Fitting the model (i.e. learning with training set)
         model.fit(self.x_train, self.y_train,
                   batch_size=128,
                   epochs=10,
                   verbose=2 if verbose_mode else 0,
                   validation_data=(self.x_develop, self.y_develop))
 
+        # Calculating classification accuracy on test set
         scores = model.evaluate(self.x_test, self.y_test, verbose=1 if verbose_mode else 0)
 
+        # if user provided a path, save the actual predictions on the test set to a file
         if save_predictions_file != "":
             predictions = model.predict(self.x_test)
             np.savetxt(save_predictions_file, predictions, delimiter=",")
 
+        # print loss and accuracy on test set
         if verbose_mode:
             print('Test loss:', scores[0])
             print('Test accuracy:', scores[1])
