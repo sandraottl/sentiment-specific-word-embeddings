@@ -39,4 +39,4 @@ def convert_tweet_csv(input_csv,
                 tokenized_tweet = preprocessor.tokenize_tweet(tweet)
                 embeddings = embedding.lookup(tokenized_tweet)
                 for row in embeddings:
-                    writer.writerow([id]+list(row)+[sentiment])
+                    writer.writerow([id] + list(row) + [sentiment])

@@ -39,7 +39,9 @@ def plot_confusion_matrix(cm,
     fig = matplotlib.figure.Figure(dpi=200)  # dpi: pixel per inch
     original_cm = cm
     if normalize:
-        cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]  # calculate recall for every element in matrix
+        cm = cm.astype('float') / cm.sum(
+            axis=1)[:,
+                    np.newaxis]  # calculate recall for every element in matrix
     ax = fig.add_subplot(1, 1, 1)
     im = ax.imshow(cm, vmin=0, vmax=1, cmap=cmap)  # plot confusion matrix
     fig.colorbar(im)  # add color bar
@@ -47,7 +49,9 @@ def plot_confusion_matrix(cm,
     tick_marks = np.arange(len(classes))  # add tick marks
     ax.set_xlabel(predicted_label)  # set x axis label (Prediction)
     ax.set_xticks(tick_marks)  # set x axis tick marks
-    ax.set_xticklabels(classes, rotation=45)  # set x axis tick labels (negative, positive) rotated
+    ax.set_xticklabels(
+        classes,
+        rotation=45)  # set x axis tick labels (negative, positive) rotated
     ax.set_ylabel(true_label)  # set y axis label (Actual)
     ax.set_yticks(tick_marks)  # set y axis tick marks
     ax.set_yticklabels(classes)  # set y axis tick labels (negative, positive)
@@ -85,19 +89,14 @@ def main():
     """
     Main method for plotting a confusion matrix of an input file.
     """
-    parser = ArgumentParser(
-        description=
-        'Run BoW experiments.')
-    parser.add_argument(
-        'input',
-        help='csv file')
-    parser.add_argument(
-        'output', help='output path.', default=None)
+    parser = ArgumentParser(description='Run BoW experiments.')
+    parser.add_argument('input', help='csv file')
+    parser.add_argument('output', help='output path.', default=None)
     args = vars(parser.parse_args())
-    
+
     data = np.genfromtxt(args['input'], delimiter=';', dtype=str)
-    predictions = data[1:,0]
-    actual = data[1:,1]
+    predictions = data[1:, 0]
+    actual = data[1:, 1]
     print(predictions, actual)
     labels = sorted(set(actual))
     cm = confusion_matrix(actual, predictions, labels=labels)
@@ -112,5 +111,5 @@ def main():
     save_fig(fig, args['output'])
 
 
-if __name__=='__main__':
+if __name__ == '__main__':
     main()

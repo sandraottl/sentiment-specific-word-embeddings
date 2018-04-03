@@ -65,15 +65,23 @@ def parameter_search_train_devel_test(train_X,
             makedirs(dir, exist_ok=True)
             csv_file = open(output, 'w', newline='')
             csv_writer = csv.writer(csv_file)
-            csv_writer.writerow(['Complexity', 'Accuracy Development', 'Accuracy Test'])
+            csv_writer.writerow(
+                ['Complexity', 'Accuracy Development', 'Accuracy Test'])
         for C in Cs:
-            clf = LinearSVC(C=C, class_weight='balanced', random_state=RANDOM_SEED)  # classifier
+            clf = LinearSVC(
+                C=C, class_weight='balanced',
+                random_state=RANDOM_SEED)  # classifier
             clf.fit(train_X, train_y)  # train SVM on training partition
-            predicted_devel = clf.predict(devel_X)  # predict labels for classifier on development features
-            WAR_devel = accuracy_score(devel_y, predicted_devel)  # compute accuracy
+            predicted_devel = clf.predict(
+                devel_X
+            )  # predict labels for classifier on development features
+            WAR_devel = accuracy_score(devel_y,
+                                       predicted_devel)  # compute accuracy
 
-            clf = LinearSVC(C=C, class_weight='balanced', random_state=RANDOM_SEED)
-            clf.fit(traindevel_X, traindevel_y)  # train SVM on development partition
+            clf = LinearSVC(
+                C=C, class_weight='balanced', random_state=RANDOM_SEED)
+            clf.fit(traindevel_X,
+                    traindevel_y)  # train SVM on development partition
             predicted_test = clf.predict(test_X)
             WAR_test = accuracy_score(test_y, predicted_test)
             print('C: {:.1E} WAR development: {:.2%} WAR test: {:.2%}'.format(
@@ -83,7 +91,7 @@ def parameter_search_train_devel_test(train_X,
                     '{:.1E}'.format(Decimal(C)), '{:.2%}'.format(WAR_devel),
                     '{:.2%}'.format(WAR_test)
                 ])
-            if WAR_devel > best_war_devel:  # save test accuracy of best devel accuracy 
+            if WAR_devel > best_war_devel:  # save test accuracy of best devel accuracy
                 best_war_devel = WAR_devel
                 final_war_test = WAR_test
                 best_prediction = predicted_test
@@ -94,7 +102,12 @@ def parameter_search_train_devel_test(train_X,
             csv_file.close()
 
 
-def run_SVM(train, devel, test, complexity=np.logspace(0, -9, num=10), cm_path=None, output=None):
+def run_SVM(train,
+            devel,
+            test,
+            complexity=np.logspace(0, -9, num=10),
+            cm_path=None,
+            output=None):
     """
     Loading input training, development and testing csvs and training of a linear SVM classifier 
     on those. Construction of a confusion matrix.
@@ -127,7 +140,9 @@ def run_SVM(train, devel, test, complexity=np.logspace(0, -9, num=10), cm_path=N
     if cm_path:
         print('Writing confusion matrix ...')
         cm_path = abspath(cm_path)
-        makedirs(dirname(cm_path), exist_ok=True)  # if directory of confusion matrix does not exist yet
+        makedirs(
+            dirname(cm_path), exist_ok=True
+        )  # if directory of confusion matrix does not exist yet
         fig = plot_confusion_matrix(
             cm,
             classes=labels,
