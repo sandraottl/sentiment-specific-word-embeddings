@@ -7,13 +7,15 @@ rcParams.update({'figure.autolayout': True})
 from os.path import splitext, dirname, abspath
 from os import makedirs
 from matplotlib.backends.backend_agg import FigureCanvasAgg
+from sklearn.metrics import accuracy_score, confusion_matrix
+from argparse import ArgumentParser
 
 
 def plot_confusion_matrix(cm,
                           classes,
                           normalize=False,
                           title='Confusion matrix',
-                          cmap='summer_r',
+                          cmap='Blues',
                           predicted_label='Prediction',
                           true_label='Actual'):
     """
@@ -66,3 +68,35 @@ def plot_confusion_matrix(cm,
 def save_fig(fig, save_path):
     canvas = FigureCanvasAgg(fig)
     fig.savefig(save_path, format=splitext(save_path)[1][1:])
+
+
+def main():
+    parser = ArgumentParser(
+        description=
+        'Run BoW experiments.')
+    parser.add_argument(
+        'input',
+        help='csv file')
+    parser.add_argument(
+        'output', help='output path.', default=None)
+    args = vars(parser.parse_args())
+    
+    data = np.genfromtxt(args['input'], delimiter=';', dtype=str)
+    predictions = data[1:,0]
+    actual = data[1:,1]
+    print(predictions, actual)
+    labels = sorted(set(actual))
+    cm = confusion_matrix(actual, predictions, labels=labels)
+    print(accuracy_score(actual, predictions))
+
+    fig = plot_confusion_matrix(
+        cm,
+        classes=labels,
+        normalize=True,
+        title='Confusion Matrix',
+        cmap='Blues')
+    save_fig(fig, args['output'])
+
+
+if __name__=='__main__':
+    main()
