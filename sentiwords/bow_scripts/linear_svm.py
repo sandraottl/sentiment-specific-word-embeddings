@@ -3,7 +3,6 @@ Module for loading training, development and testing csv, training a linear SVM 
 on those, and constructing a confusion matrix.
 author: Sandra Ottl
 """
-import argparse
 import csv
 import numpy as np
 import pandas as pd
