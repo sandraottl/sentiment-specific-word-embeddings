@@ -1,7 +1,12 @@
-# Classification with Convolutional and LSTM Neural Networks
-# **********************************************************
+"""
+Classification with Convolutional and LSTM Neural Networks
 
-# import sys
+Responsibility: Rick Beer
+
+"""
+
+import sys
+import os
 import numpy as np
 import pandas as pd
 from sklearn.preprocessing import LabelEncoder
@@ -10,14 +15,29 @@ from keras.utils import to_categorical
 from keras.layers import Dense, Input, Embedding, LSTM, Flatten, GlobalMaxPooling1D, Conv1D, MaxPooling1D
 from keras.models import Model
 
-from ..processing.preprocessing import Preprocessor
-# sys.path.append('C:/Users/WohnzimmerPC/Documents/GitHub/sentiment-specific-word-embeddings/sentiwords/')
-# from processing.preprocessing import Preprocessor
+# from ..processing.preprocessing import Preprocessor
+sys.path.append('C:/Users/WohnzimmerPC/Documents/GitHub/sentiment-specific-word-embeddings/sentiwords/')
+from processing.preprocessing import Preprocessor
 
 
 class NeuralNetworkClassifier:
 
+    """
+    Handles loading of embeddings and datasets and performs classification with CNN and LSTM networks
+
+    Methods:
+        load_embedding:  loads pre-learned embeddings from a file for use in classification
+        load_and_preprocess_data:  loads three datasets (training,development,test) with tweets for classification
+        convnn:  performs classification with Convolutional Neural Network
+        lstm:  performs classification with Long Short-Term Memory Neural Network
+
+    Note: you can reuse an instance for multiple classifications on the same combination of datasets and embeddings,
+          but you cannot change the data/embeddings afterwards (create a new instance instead)
+
+    """
+
     def __init__(self):
+        """Initialization of new instance (no arguments)"""
 
         self.tweet_length = 0  # padding length to which all tweets will be converted
         self.embedding_dim = 0  # number of dimensions of embeddings
@@ -35,7 +55,14 @@ class NeuralNetworkClassifier:
     def load_embedding(self,
                        embedding_dim,
                        path_embeddingfile):
+        """
+        Load pre-learned embeddings to be used in classification
 
+        :param embedding_dim: number of dimensions of the loaded embeddings
+        :param path_embeddingfile: path to the file containing the embeddings
+        :return void
+
+        """
         self.embedding_dim = embedding_dim
 
         with open(path_embeddingfile, encoding='utf8') as embedfile:
@@ -52,7 +79,16 @@ class NeuralNetworkClassifier:
                                  path_developfile,
                                  path_testfile,
                                  tweet_length=40):
+        """
+        Load and preprocess the three datasets (training,development,test) for classification
 
+        :param path_trainingfile: path to the file containing the training dataset
+        :param path_developfile: path to the file containing the development dataset
+        :param path_testfile: path to the file containing the test dataset
+        :param tweet_length: padding length of tweets to which all tweets will be truncated/expanded
+        :return: void
+
+        """
         self.tweet_length = tweet_length
 
         pp = Preprocessor()
@@ -140,7 +176,18 @@ class NeuralNetworkClassifier:
 
         print("For %s words of the Tweet Vocabulary, no prelearned embedding could be found" % embed_not_found_counter)
 
-    def convnn(self, dim_convlayers=20, dim_denselayer=20, verbosity=0):
+    def convnn(self, dim_convlayers=20, rank_kernels=2, verbose_mode=False, save_predictions_file=""):
+        """
+        Perform classification with Convolutional Neural Network
+
+        :param dim_convlayers: number of dimensions of the Convolutional Layers
+        :param rank_kernels: rank of convolution kernels used in the Convolutional Layers
+        :param verbose_mode: print detailed results of each learning epoch during operation
+        :param save_predictions_file: path to file in which the predictions are saved (optional)
+        :return: classification accuracy
+        """
+        dimconvlayers = int(round(dim_convlayers))
+        rankkernels = int(round(rank_kernels))
 
         # Check if loading and preprocessing is finished, then prepare embedding matrix
         assert self.tweet_length > 0
@@ -159,14 +206,12 @@ class NeuralNetworkClassifier:
 
         embedded_inputs = embedding_layer(inputtensor)
 
-        x = Conv1D(int(dim_convlayers), 2, activation='relu')(embedded_inputs)
-        x = MaxPooling1D(2)(x)
-        x = Conv1D(int(dim_convlayers), 2, activation='relu')(x)
-        x = MaxPooling1D(2)(x)
-        x = Conv1D(int(dim_convlayers), 2, activation='relu')(x)
+        x = Conv1D(dimconvlayers, rankkernels, activation='relu')(embedded_inputs)
+        x = MaxPooling1D(rankkernels)(x)
+        x = Conv1D(dimconvlayers, rankkernels, activation='relu')(x)
         x = GlobalMaxPooling1D()(x)
 
-        x = Dense(int(dim_denselayer), activation='relu')(x)
+        x = Dense(20, activation='relu')(x)
 
         outputlayer = Dense(self.y_train.shape[1], activation='softmax')(x)
 
@@ -178,19 +223,29 @@ class NeuralNetworkClassifier:
         model.fit(self.x_train, self.y_train,
                   batch_size=128,
                   epochs=10,
-                  verbose=verbosity,
+                  verbose=2 if verbose_mode else 0,
                   validation_data=(self.x_develop, self.y_develop))
 
-        scores = model.evaluate(self.x_test, self.y_test, verbose=verbosity)
+        scores = model.evaluate(self.x_test, self.y_test, verbose=1 if verbose_mode else 0)
 
-        if verbosity > 0:
+        if save_predictions_file != "":
+            predictions = model.predict(self.x_test)
+            np.savetxt(save_predictions_file, predictions, delimiter=",")
+
+        if verbose_mode:
             print('Test loss:', scores[0])
             print('Test accuracy:', scores[1])
 
         return scores[1]
 
-    def lstm(self, verbosity=0):
+    def lstm(self, verbose_mode=False, save_predictions_file=""):
+        """
+        Perform classification with Long Short-Term Memory Neural Network
 
+        :param verbose_mode: print detailed results of each learning epoch during operation
+        :param save_predictions_file: path to file in which the predictions are saved (optional)
+        :return: classification accuracy
+        """
         # Check if loading and preprocessing is finished, then prepare embedding matrix
         assert self.tweet_length > 0
         assert self.embedding_dim > 0
@@ -222,13 +277,17 @@ class NeuralNetworkClassifier:
 
         model.fit(self.x_train, self.y_train,
                   batch_size=128,
-                  epochs=7,
-                  verbose=verbosity,
+                  epochs=10,
+                  verbose=2 if verbose_mode else 0,
                   validation_data=(self.x_develop, self.y_develop))
 
-        scores = model.evaluate(self.x_test, self.y_test, verbose=verbosity)
+        scores = model.evaluate(self.x_test, self.y_test, verbose=1 if verbose_mode else 0)
 
-        if verbosity > 0:
+        if save_predictions_file != "":
+            predictions = model.predict(self.x_test)
+            np.savetxt(save_predictions_file, predictions, delimiter=",")
+
+        if verbose_mode:
             print('Test loss:', scores[0])
             print('Test accuracy:', scores[1])
 
@@ -237,13 +296,22 @@ class NeuralNetworkClassifier:
 
 if __name__ == '__main__':
 
+    # Sample Usage
+
+    basedir = "C:/Users/WohnzimmerPC/Desktop/Datenpool_TMP2018_SSWE/"
+
+    embeddingfile = os.path.join(basedir, 'glove-alpha05_50d/glove-alpha05_50d.csv')
+    trainingfile = os.path.join(basedir, 'semeval_fullcleaned_2sent/twitter-2013train-A.txt')
+    developfile = os.path.join(basedir, 'semeval_fullcleaned_2sent/twitter-2013dev-A.txt')
+    testfile = os.path.join(basedir, 'semeval_fullcleaned_2sent/twitter-2013test-A.txt')
+
     NNC = NeuralNetworkClassifier()
 
     NNC.load_embedding(embedding_dim=50,
-                       path_embeddingfile='C:/Users/WohnzimmerPC/Desktop/Datenpool_TMP2018_SSWE/sswe-alpha05_50d/sswe-alpha05_50d.csv')
-    NNC.load_and_preprocess_data(path_trainingfile='C:/Users/WohnzimmerPC/Desktop/Datenpool_TMP2018_SSWE/semeval_cleaned_2sent/twitter-2013train-A.txt',
-                                 path_developfile='C:/Users/WohnzimmerPC/Desktop/Datenpool_TMP2018_SSWE/semeval_cleaned_2sent/twitter-2013dev-A.txt',
-                                 path_testfile='C:/Users/WohnzimmerPC/Desktop/Datenpool_TMP2018_SSWE/semeval_cleaned_2sent/twitter-2013test-A.txt')
+                       path_embeddingfile=embeddingfile)
+    NNC.load_and_preprocess_data(path_trainingfile=trainingfile,
+                                 path_developfile=developfile,
+                                 path_testfile=testfile)
 
-    NNC.convnn(verbosity=2)
-    NNC.lstm(verbosity=2)
+    NNC.convnn(verbose_mode=True)
+    NNC.lstm(verbose_mode=True)
