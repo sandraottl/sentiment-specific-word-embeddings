@@ -1,3 +1,7 @@
+"""
+Module for plotting a confusion matrix.
+author: Sandra Ottl
+"""
 import numpy as np
 import itertools
 import matplotlib
@@ -22,7 +26,7 @@ def plot_confusion_matrix(cm,
     Adapted from:
     http://scikit-learn.org/stable/auto_examples/model_selection/plot_confusion_matrix.html#sphx-glr-auto-examples-model-selection-plot-confusion-matrix-py
     Plots a confusion matrix.
-    parameters:
+    arguments:
         cm: confusion matrix
         classes: sorted labels for all classes (e.g. negative, positive)
         normalize: applying normalization for color purposes (color depends on class recall rather than counts)
@@ -30,6 +34,7 @@ def plot_confusion_matrix(cm,
         cmap: color map
         predicited_label: x axis
         true_label: y axis
+    returns: matplotlib figure
     """
     fig = matplotlib.figure.Figure(dpi=200)  # dpi: pixel per inch
     original_cm = cm
@@ -66,11 +71,20 @@ def plot_confusion_matrix(cm,
 
 
 def save_fig(fig, save_path):
+    """
+    Saves a figure to a certain location.
+    arguments:
+        fig: matplotlib figure
+        save_path: path of the saved figure
+    """
     canvas = FigureCanvasAgg(fig)
     fig.savefig(save_path, format=splitext(save_path)[1][1:])
 
 
 def main():
+    """
+    Main method for plotting a confusion matrix of an input file.
+    """
     parser = ArgumentParser(
         description=
         'Run BoW experiments.')

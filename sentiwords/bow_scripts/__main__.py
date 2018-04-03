@@ -1,3 +1,10 @@
+"""
+Main module for running the complete Bag-of-Embeddings experiment: 
+Creating embedding files, constructing Bag-of-Embeddings, 
+training and evaluating linear SVM classifier on the created BoEs and aggregating 
+the best results.
+author: Sandra Ottl
+"""
 import subprocess
 import pandas as pd
 import numpy as np
@@ -14,6 +21,16 @@ __OPEN_XBOW_PATH = '/media/storage/TMP/openXBOW/openXBOW.jar'
 
 
 def create_embedding_files(train, devel, test, embeddings, basepath='experiment'):
+    """
+    Creating embedding files for training, development and testing files.
+    Converts the tweet csvs by looking up word embeddings for every word of each tweet.
+    arguments:
+        train: path to training csv
+        devel: path to development csv
+        test: path to testing csv
+        embeddings: path to embeddings file
+        basepath: folder for the converted csvs
+    """
     print('Loading embeddings ...')
     makedirs(basepath, exist_ok=True)
     embedding = Embedding()
@@ -27,6 +44,17 @@ def create_embedding_files(train, devel, test, embeddings, basepath='experiment'
 
 
 def create_BoW(train, devel, test, cbs=[10, 20, 50, 100, 200, 500, 1000, 2000], no_vectors=[1, 10, 25, 50, 100, 200, 500, 1000], BoW_folder='BoW'):
+    """
+    Creates BoEs from csvs with word vectors for different codebook sizes and 
+    number of vectors by using openXBOW.
+    arguments:
+        train: path to training csv
+        devel: path to development csv
+        test: path to testing csv
+        cbs: codebook sizes
+        no_vectors: number of vectors
+        BoW_folder: output folder for BoEs
+    """
     makedirs(BoW_folder, exist_ok=True)  # create BoW directory
     for size in cbs:
         makedirs(join(BoW_folder, str(size)), exist_ok=True)
@@ -42,6 +70,15 @@ def create_BoW(train, devel, test, cbs=[10, 20, 50, 100, 200, 500, 1000, 2000], 
 
 
 def evaluate_BoW(train, devel, test, complexity, BoW_folder='BoW'):
+    """
+    Loops through all BoE configurations and evaluates them with a linear SVM classifier.
+    arguments:
+        train: common filename of all training csvs
+        devel: common filename of all development csvs
+        test: common filename of all testing csvs
+        complexity: complexity values
+        BoW_folder: folder containing BoEs
+    """
     size_folders = [join(BoW_folder, folder) for folder in listdir(BoW_folder) if isdir(join(BoW_folder, folder))]
     for size in size_folders:
         a_folders = [join(size, folder) for folder in listdir(size) if isdir(join(size, folder))]
@@ -52,7 +89,11 @@ def evaluate_BoW(train, devel, test, complexity, BoW_folder='BoW'):
 
 def get_best_results(file_path, n_best=1):
     """
-    Return n_best (complexity, Accuracy Development, Accuracy Test) triples from results csv
+    Get n_best (complexity, Accuracy Development, Accuracy Test) triples from results csv.
+    arguments:
+        file_path: results csv
+        n_best: number of best triples that are returned (default: 1)
+    returns: n_best (complexity, Accuracy Development, Accuracy Test) triples
     """
     df = pd.read_csv(file_path, dtype=object)
     f = lambda x: x.strip('%')  # get percent number without percentage sign
@@ -72,8 +113,10 @@ def get_best_results(file_path, n_best=1):
 def aggregate_performance(basepath):
     """
     Aggregate best BoW results.
-    Write csv containing best two results for each codebook size and a
-    and the best overall result.
+    Write csv containing best two results for each codebook size and assignment value and 
+    the best overall result.
+    arguments:
+        basepath: basepath of experiment results
     """
     PATH = abspath(basepath)
 
@@ -119,6 +162,9 @@ def aggregate_performance(basepath):
 
 
 def main():
+    """
+    Main method for running the complete Bag-of-Embeddings experiment.
+    """
     parser = ArgumentParser(
         description=
         'Run BoW experiments.')

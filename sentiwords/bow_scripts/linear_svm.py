@@ -1,3 +1,8 @@
+"""
+Module for loading training, development and testing csv, training a linear SVM classifier 
+on those, and constructing a confusion matrix.
+author: Sandra Ottl
+"""
 import argparse
 import csv
 import numpy as np
@@ -14,6 +19,12 @@ RANDOM_SEED = 42
 
 
 def _load(file):
+    """
+    Get values of names, features and labels out of input csv.
+    arguments:
+        file: file that has to be loaded
+    returns: numpy arrays of names, features and labels contained in input csv
+    """
     df = pd.read_csv(file, sep=';', header=None)
     names = df.iloc[:, 0].astype(str)
     features = df.iloc[:, 1:-1].astype(float)
@@ -33,9 +44,8 @@ def parameter_search_train_devel_test(train_X,
     Run optimization loop for linear SVM classifier on train, devel and test.
     For each complexity, SVM is trained on both train and combined traindevel 
     and evaluated on devel and test respectively. The achieved accuracies are 
-    optionally written to a csv file for each C. Returns test predictions and 
-    accuracy for optimized model. 
-    parameters:
+    optionally written to a csv file for each C.
+    arguments:
         train_X: training features
         train_y: training labels
         devel_X: development features
@@ -44,6 +54,7 @@ def parameter_search_train_devel_test(train_X,
         test_y: testing labels
         Cs: c values
         output: output filepath (.csv)
+    returns: test predictions and accuracy for optimized model
     """
     best_war_devel = 0
     traindevel_X = np.append(train_X, devel_X, axis=0)
@@ -84,6 +95,17 @@ def parameter_search_train_devel_test(train_X,
 
 
 def run_SVM(train, devel, test, complexity=np.logspace(0, -9, num=10), cm_path=None, output=None):
+    """
+    Loading input training, development and testing csvs and training of a linear SVM classifier 
+    on those. Construction of a confusion matrix.
+    arguments:
+        train: path to training csv
+        devel: path to development csv
+        test: path to testing csv
+        complexity: complexity values
+        cm_path: path to confusion_matrix
+        output: output filepath (.csv)
+    """
     print('Loading input ...')
     train_names, train_X, train_y = _load(train)
     devel_names, devel_X, devel_y = _load(devel)
@@ -112,32 +134,3 @@ def run_SVM(train, devel, test, complexity=np.logspace(0, -9, num=10), cm_path=N
             normalize=True,
             title='Accuracy {:.1%}'.format(WAR))
         save_fig(fig, cm_path)
-
-
-# def main():
-#     parser = argparse.ArgumentParser(
-#         description=
-#         'Evaluate linear SVM for given Cs on a train, devel, test split of data in csv format',
-#         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-#     parser.add_argument(
-#         'input',
-#         nargs=3,
-#         help='csv files of training, development and test sets')
-#     parser.add_argument(
-#         '-C',
-#         nargs='+',
-#         type=Decimal,
-#         help='Complexities for SVM.',
-#         required=False,
-#         default=np.logspace(0, -9, num=10))
-#     parser.add_argument(
-#         '-output', help='Output path.', required=False, default=None)
-#     parser.add_argument(
-#         '-cm', help='Confusion matrix path.', required=False, default=None)
-#     args = vars(parser.parse_args())
-#     output = abspath(args['output'])
-#     run_SVM(args['input'][0], args['input'][1], args['input'][2], complexity=args['C'], cm_path=args['cm'], output=output)
-    
-
-# if __name__ == '__main__':
-#     main()

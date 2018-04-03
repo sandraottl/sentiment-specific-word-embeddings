@@ -1,3 +1,7 @@
+"""
+Module for converting a csv with tweets and their sentiment labels into a corresponding embeddings csv.
+author: Sandra Ottl
+"""
 import csv
 import argparse
 from tqdm import tqdm
@@ -12,7 +16,7 @@ def convert_tweet_csv(input_csv,
                       preprocessor=Preprocessor()):
     """
     Convert csv with tweets and their sentiment labels into a corresponding embeddings csv.
-    parameters:
+    arguments:
         input_csv: csv containing tweets
         output_csv: csv containing embeddings
         embedding_csv: csv containing words and their embedding vectors
@@ -36,20 +40,3 @@ def convert_tweet_csv(input_csv,
                 embeddings = embedding.lookup(tokenized_tweet)
                 for row in embeddings:
                     writer.writerow([id]+list(row)+[sentiment])
-
-# def main():
-#     parser = argparse.ArgumentParser(
-#         description=
-#         'Look up word embeddings for tweets in a csv of format "tweet_id<tab>sentiment<tab>tweet" and write them to an output csv. '
-#     )
-#     parser.add_argument('-i', required=True, help='Input csv filled with tweets.')
-#     parser.add_argument('-o', required=True, help='Output path.')
-#     parser.add_argument('-embedding', required=True, help='Path to embedding csv.')
-#     args = parser.parse_args()
-#     embedding = Embedding()
-#     embedding.load(args.embedding)
-#     convert_tweet_csv(args.i, args.o, embedding)
-
-
-# if __name__=='__main__':
-#     main()
